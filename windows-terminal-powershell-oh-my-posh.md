@@ -11,7 +11,7 @@ tagline: >-
 budget:
   value: "~25"
   unit: "minutes, once, per laptop"
-version: "1.0"
+version: "1.1"
 date: 2026-10-26
 lang: en
 ---
@@ -58,15 +58,13 @@ Windows Terminal asks for `Cascadia Code NF, MesloLGM Nerd Font, Consolas`, in t
 
 ### PowerShell modules {.unnumbered}
 
-All four live in `OneDrive\Documents\PowerShell\Modules` (installed from PSGallery with PSResourceGet). **None is imported at startup.**
+All three live in `OneDrive\Documents\PowerShell\Modules` (installed from PSGallery with PSResourceGet). **None is imported at startup.**
 
 | Module | Version | How it is used |
 |---|---|---|
 | PSFzf | 2.7.12 | Not imported. The profile's own fzf key handlers replace it (it cost ~440 ms). `Import-Module PSFzf` still works on demand |
 | Terminal-Icons | 0.11.0 | Opt-in: `Enable-TerminalIcons` (~400 ms) |
 | CompletionPredictor | 0.1.1 | Opt-in: `Enable-CompletionPredictor` switches predictions to `HistoryAndPlugin` |
-| posh-git | 1.1.0 | Not referenced anywhere (see *Audit findings*) |
-
 ### Files that make up the setup {.unnumbered}
 
 | File | What it holds | Written in |
@@ -162,11 +160,9 @@ Skip this step if OneDrive already brought the `Modules` folder.
 ```powershell
 Install-PSResource -Name PSFzf               -Version 2.7.12 -Repository PSGallery -TrustRepository
 Install-PSResource -Name Terminal-Icons      -Version 0.11.0 -Repository PSGallery -TrustRepository
-Install-PSResource -Name CompletionPredictor -Version 0.1.1  -Repository PSGallery -TrustRepository
-Install-PSResource -Name posh-git            -Version 1.1.0  -Repository PSGallery -TrustRepository
-```
+Install-PSResource -Name CompletionPredictor -Version 0.1.1  -Repository PSGallery -TrustRepository```
 
-All four are listed for an exact copy, but the profile imports none of them at startup. posh-git is unused, and you can leave it out (see *Audit findings*).
+All three are listed for an exact copy, but the profile imports none of them at startup.
 
 ### Write the Oh My Posh theme {.step minutes="1 min" shell="powershell"}
 
@@ -1069,7 +1065,7 @@ That build is no longer in the catalogue. Drop `--version` and note the version 
 
 These are observations only. The rebuild above reproduces the source machine as it is.
 
-1. **posh-git is installed but never loaded.** Nothing imports it. The Oh My Posh `git` segment does its job. You can uninstall it (`Uninstall-PSResource posh-git`) and leave it out of Step 5.
+1. **posh-git was installed but never loaded. Fixed 2026-10-26.** Nothing imported it, and the Oh My Posh `git` segment does its job. It was removed from the source machine with `Uninstall-PSResource posh-git` and is no longer part of Step 5.
 2. **The init cache can outlive an Oh My Posh upgrade.** It regenerates only after 14 days, so after `winget upgrade` the shell can run the old init script against the new exe until you run `Reset-ShellCache`. Making that part of the upgrade routine closes the gap.
 3. **The history filter only catches `key=` and `key:` forms.** `$token = '…'` and `password: …` stay out of history, but parameter forms such as `-Password …` or `-Token …` are still saved to the history file. Avoid secrets on the command line. The filter isn't a safety net for them.
 4. **Paste warnings are off.** `warning.largePaste` is `false` and `warning.multiLinePaste` is `never`. In PowerShell 7 a multi-line paste lands in the edit buffer, but in *Command Prompt* or *Git Bash* each pasted line runs at once.
