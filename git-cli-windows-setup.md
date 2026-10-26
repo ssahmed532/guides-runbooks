@@ -10,8 +10,8 @@ tagline: >-
 budget:
   value: "~20"
   unit: "minutes, once, per laptop"
-version: "1.1"
-date: 2026-10-26
+version: "1.2"
+date: 2026-10-27
 lang: en
 ---
 
@@ -25,6 +25,8 @@ Steps marked shell="git-bash" run in Git Bash (prompt reads MINGW64); shell="pow
 **Inventoried 2026-10-26** on Windows 11 Pro 10.0.26200, Git for Windows **2.56.0.windows.3**. Every value below was read from the live machine: `git config --list --show-scope --show-origin`, the raw `~/.gitconfig` and `C:\Program Files\Git\etc\gitconfig`, the Git installer's registry record, `winget list`, and the PowerShell profile. Personal identity values are written as placeholders (`Your Name`, `you@example.com`). Put in your own.
 
 **v1.1, 2026-10-26:** the diff pipeline was re-verified on the same machine and the *How delta pages* section was added, from `delta --show-config`, a `git` alias probe run in PowerShell, `git-config(1)` and the delta manual.
+
+**v1.2, 2026-10-27:** the *"No signature"* fault no longer lists a wrong email as a cause. Verifying a signed commit against allowed-signers files with a wrong email and with a wrong key showed that Git matches by key: wrong email still gives `G`, wrong key gives `U`.
 :::
 
 ## Inventory {#inventory}
@@ -382,7 +384,7 @@ The heredoc was unquoted, or an editor turned the tab indentation into something
 The empty `helper =` line is missing, so GCM still handles GitHub. Check with `git config --show-origin --get-all credential.https://github.com.helper`.
 
 #### `git log` reports “No signature” on your own commits
-`~/.ssh/allowed_signers` is missing, has the wrong email, or was written by PowerShell (UTF-16). See *Faults* in [Sign Your Commits](sign-your-commits.md).
+`~/.ssh/allowed_signers` is missing or was written by PowerShell (UTF-16). See *Faults* in [Sign Your Commits](sign-your-commits.md). The email in that file doesn't affect this: Git matches the line by key and prints whatever email it holds. A line with the wrong **key** shows `No principal matched.` and `%G?` of `U` instead.
 
 #### Commit editor is Vim
 Notepad++ wasn't installed when Git was, so the installer fell back to Vim. Re-run Step 2. The installer rewrites `core.editor` in the system file.
