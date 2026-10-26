@@ -10,7 +10,7 @@ tagline: >-
 budget:
   value: "~20"
   unit: "minutes, once, per laptop"
-version: "1.0"
+version: "1.1"
 date: 2026-10-26
 lang: en
 ---
@@ -23,6 +23,8 @@ Steps marked shell="git-bash" run in Git Bash (prompt reads MINGW64); shell="pow
 
 ::: {.req label="Source machine"}
 **Inventoried 2026-10-26** on Windows 11 Pro 10.0.26200, Git for Windows **2.56.0.windows.3**. Every value below was read from the live machine: `git config --list --show-scope --show-origin`, the raw `~/.gitconfig` and `C:\Program Files\Git\etc\gitconfig`, the Git installer's registry record, `winget list`, and the PowerShell profile. Personal identity values are written as placeholders (`Your Name`, `you@example.com`). Put in your own.
+
+**v1.1, 2026-10-26:** the diff pipeline was re-verified on the same machine and the *How delta pages* section was added, from `delta --show-config`, a `git` alias probe run in PowerShell, `git-config(1)` and the delta manual.
 :::
 
 ## Inventory {#inventory}
@@ -31,8 +33,8 @@ Steps marked shell="git-bash" run in Git Bash (prompt reads MINGW64); shell="pow
 
 | Tool | Version | winget id | Role in the Git setup |
 |---|---|---|---|
-| Git for Windows | 2.56.0.3 | `Git.Git` | Git, Git Bash, bundled OpenSSH 10.6p1, Git LFS 3.8.1, Git Credential Manager 2.9.1 |
-| delta | 0.20.1 | `dandavison.delta` | Pager for every diff, log, show and `add -p` |
+| Git for Windows | 2.56.0.3 | `Git.Git` | Git, Git Bash, bundled OpenSSH 10.6p1, Git LFS 3.8.1, Git Credential Manager 2.9.1, **less 710** (the pager delta runs) |
+| delta | 0.20.1 | `dandavison.delta` | Renders every diff, log, show and `add -p`, then pages the result through Git's `less` |
 | GitHub CLI | 2.103.2 | `GitHub.cli` | Credential helper for `github.com` and `gist.github.com` |
 | Notepad++ | 8.9.8.1 | `Notepad++.Notepad++` | `core.editor` (Git Bash, cmd, GUIs) |
 | VS Code | n/a | n/a | `GIT_EDITOR` inside PowerShell (set by the profile) |
@@ -62,7 +64,7 @@ Steps marked shell="git-bash" run in Git Bash (prompt reads MINGW64); shell="pow
 | Key | Value | Why it matters |
 |---|---|---|
 | `user.name` / `user.email` | *your identity* | Author and committer |
-| `core.pager` | `delta` | **All** paged Git output goes through delta |
+| `core.pager` | `delta` | **All** paged Git output goes through delta, which in turn runs `less -R` (see *How delta pages*) |
 | `interactive.diffFilter` | `delta --color-only` | `git add -p` / `checkout -p` hunks get delta colouring and keep their 1:1 line mapping |
 | `delta.navigate` | `true` | `n` / `N` jump between files in the pager |
 | `delta.line-numbers` | `true` | Old/new line-number gutter |
@@ -87,7 +89,7 @@ Steps marked shell="git-bash" run in Git Bash (prompt reads MINGW64); shell="pow
 | `~/.ssh/allowed_signers` | One line: `<email> ssh-ed25519 <key>` |
 | PowerShell profile | `EDITOR=code`, `GIT_EDITOR=code --wait`, `BAT_THEME=Visual Studio Dark+` (only if `code` / `bat` exist) |
 
-**Not configured (deliberately absent, so leave them absent for an exact copy):** no `[alias]`, no `[include]`/`[includeIf]`, no `diff.tool`/`merge.tool`, no `~/.gitattributes`, no `~/.config/git/attributes`, no persisted `GIT_*` / `DELTA_*` environment variables, `ssh-agent` Windows service disabled, Git auto-updater not installed.
+**Not configured (deliberately absent, so leave them absent for an exact copy):** no `[alias]`, no `[include]`/`[includeIf]`, no `diff.tool`/`merge.tool`, no `~/.gitattributes`, no `~/.config/git/attributes`, no `GIT_PAGER`, `DELTA_PAGER`, `BAT_PAGER`, `PAGER`, `LESS` or `COLORTERM` variables anywhere (none persisted, none set by a profile), no other `GIT_*` / `DELTA_*` variables, `ssh-agent` Windows service disabled, Git auto-updater not installed.
 
 ## Rebuild {#setup}
 
@@ -279,11 +281,11 @@ Every layer that shapes what `git diff` shows, in the order Git applies them:
 
 | Layer | Setting | Effect |
 |---|---|---|
-| 1. Text conversion | system `diff.astextplain.textconv` + installer `etc/gitattributes` | Office, PDF, RTF and ODF files run through `astextplain` and diff as plain text, not *Binary files differ* |
+| 1. Text conversion | system `diff.astextplain.textconv` + installer `etc/gitattributes` | `.doc .docx .docm .dot .dotx .dotm .pdf .rtf .ods .odf .odt` (either case) run through `astextplain` and diff as plain text, not *Binary files differ* |
 | 2. LFS | system `filter.lfs.*` | LFS pointers are smudged and cleaned. Diffs of LFS files show pointer changes |
 | 3. Hunk algorithm | `diff.algorithm=histogram` | Picks the hunks. Applies to `diff`, `log -p`, `show`, `add -p` and `format-patch` |
-| 4. Move detection | `diff.colorMoved=default` | Lines moved as a block get their own colour (delta renders it) |
-| 5. Rendering | `core.pager=delta` + `[delta]` | Syntax highlighting, line numbers, `n`/`N` file navigation, inside delta's pager (Git's bundled `less`) |
+| 4. Move detection | `diff.colorMoved=default` | Git colours moved blocks apart from adds and deletes. delta passes those colours through unchanged: its `inspect-raw-lines` switch (on by default) is how it supports `--color-moved`. No `map-styles` is set |
+| 5. Rendering | `core.pager=delta` + `[delta]` | Syntax highlighting, line numbers, `n`/`N` navigation. delta then hands the result to `less -R` (see *How delta pages*) |
 | 6. Interactive staging | `interactive.diffFilter=delta --color-only` | `add -p`, `checkout -p`, `reset -p` hunks get colour only, with no decorations, because Git needs a 1:1 line mapping |
 | 7. Conflicts | `merge.conflictstyle=zdiff3` | Shows `<<<<<<< ours · \|\|\|\|\|\|\| base · ======= · >>>>>>> theirs`, with lines common to both sides pulled out of the conflict |
 
@@ -295,6 +297,34 @@ $ git -c delta.side-by-side=true diff     # one-off side-by-side
 $ git --no-pager diff                     # raw Git output, no delta
 
 $ git diff --stat                         # delta passes stat output through unchanged
+
+$ git diff | delta                        # force delta when Git itself would not page (see below)
+```
+
+### How delta pages {.unnumbered}
+
+Nothing in the config names a pager for delta, and `less` is not on the PowerShell `PATH`, yet `git log` pages correctly from PowerShell, cmd and Git Bash alike. This is the chain, in order:
+
+| Step | Who | What happens on this machine |
+|---|---|---|
+| 1. Terminal check | Git | Git starts a pager only when its stdout is a terminal. `git diff \| grep …` and `git diff > file` get raw, uncoloured Git output and never touch delta |
+| 2. Environment | Git | Before running `core.pager`, Git sets `LESS=FRX` and `LV=-c` **if they are unset** ([git-config(1)](https://git-scm.com/docs/git-config#Documentation/git-config.txt-corepager)). Nothing on this machine sets `LESS`, so `FRX` applies: `F` quit if it fits one screen, `R` pass colour codes through, `X` don't clear the screen on exit |
+| 3. `PATH` for children | `git.exe` | `C:\Program Files\Git\cmd\git.exe` is a launcher. It prepends `ucrt64\libexec\git-core`, `ucrt64\bin` and `usr\bin` to `PATH` before running the real Git, and every child, delta included, inherits that `PATH`. That is why delta finds **Git's** `less` 710 from PowerShell, even though `Get-Command less` fails there |
+| 4. Pager choice | delta | delta reads `DELTA_PAGER`, then `BAT_PAGER`, then `PAGER`. None is set, so it runs its default `less -R` ([delta manual](https://dandavison.github.io/delta/environment-variables.html)). `delta --show-config` confirms `pager = none` and `paging = auto`, meaning page only when delta's own stdout is a terminal |
+| 5. Paging | `less` | `less -R` plus the `FRX` from step 2. `n` / `N` are delta's `navigate` feature: it emits markers that match `navigate-regex` `^(commit\|added:\|removed:\|renamed:\|Δ\|•)` and `less` searches for them |
+| 6. Colour depth | Windows Terminal | Windows Terminal does **not** export `COLORTERM`, so delta's `true-color` auto-detection resolves to `false` and *Visual Studio Dark+* is rendered with the nearest 256-colour approximations. That is the current look. See the audit findings |
+| 7. `add -p` | Git | Interactive staging uses no pager. Git pipes each hunk through `interactive.diffFilter`, that is `delta --color-only`, and reads the coloured hunk back |
+
+Two consequences worth knowing:
+
+- **Keep every pager variable unset.** `GIT_PAGER` must be unset or exactly `delta`. If you ever set `DELTA_PAGER`, `BAT_PAGER` or `PAGER`, include `-R` and point at a **recent** `less`: the delta manual calls a current `less` essential on Windows and recommends the one bundled with Git. An old `less.exe` elsewhere on `PATH` only becomes a problem if one of those variables names it, because Git's launcher puts `usr\bin` first.
+- **delta run by hand is not Git.** When you run `delta` directly from PowerShell, or pipe into it with `git diff | delta`, delta's `PATH` is the plain PowerShell one, with no `less` on it. Do that from Git Bash, where `less` is on `PATH`, or add `C:\Program Files\Git\usr\bin` to the session `PATH` first.
+
+```powershell
+# Prove the chain from PowerShell
+git -c alias.probe='!command -v less' probe           # /usr/bin/less  (Git's less 710)
+delta --show-config | Select-String 'pager|paging'   # pager = none, paging = auto
+git log -3                                           # pages in delta; n / N move between commits, q quits
 ```
 
 ::: note
@@ -329,7 +359,14 @@ $ git show                                   # delta: line numbers, syntax colou
 
 Then run `git add -p` on a real change and check that the hunks are coloured. Undo the test commit with `git reset --hard HEAD~1` if you don't want it.
 
-In **PowerShell**, `git var GIT_EDITOR` must print `code --wait`.
+In **PowerShell**:
+
+```powershell
+git var GIT_EDITOR                                   # code --wait
+git -c alias.probe='!command -v less' probe           # /usr/bin/less
+git log -3                                           # pages in delta with n / N working
+git diff HEAD~1 | Select-Object -First 3             # raw Git output: piped, so no delta. Expected
+```
 
 ## Faults, and what they actually mean {#faults}
 
@@ -350,6 +387,15 @@ The empty `helper =` line is missing, so GCM still handles GitHub. Check with `g
 #### Commit editor is Vim
 Notepad++ wasn't installed when Git was, so the installer fell back to Vim. Re-run Step 2. The installer rewrites `core.editor` in the system file.
 
+#### `git diff` shows plain `+` / `-` lines with no colour
+The output was piped or redirected, so Git never started a pager (step 1 of *How delta pages*). Run the command on its own, or pipe through `delta` explicitly from Git Bash.
+
+#### Wrong colours, stray characters, or `n` / `N` do nothing
+delta is running a different `less`. Something set `DELTA_PAGER`, `BAT_PAGER` or `PAGER`. Check `delta --show-config | grep pager` (must read `none`) and `env | grep -E 'PAGER|LESS'` (must be empty). Unset the variable; delta then falls back to `less -R`, and Git's launcher guarantees that is Git's `less` 710.
+
+#### Colours look flat next to VS Code's *Dark+*
+Expected on this setup. Windows Terminal does not set `COLORTERM`, so delta renders in 256 colours. Audit finding 7 has the one-line opt-in for 24-bit colour.
+
 #### winget: *No version found matching*
 That build is no longer in the catalogue. Drop `--version` and note the version you got.
 
@@ -365,7 +411,9 @@ These are observations only. The rebuild above reproduces the source machine as 
 4. **No Git auto-update.** The `autoupdate` component is deselected. Keep Git current with `winget upgrade Git.Git`. A winget upgrade reuses the recorded installer choices.
 5. **A single global identity.** A personal email is set globally and nothing overrides it per directory. If org repos are ever cloned on this machine, an `[includeIf "gitdir:…"]` with a work identity would stop commits going out under the personal address. Not applied here, to keep the copy exact.
 6. **Signing works but nothing is tuned beyond it.** `fetch.prune`, `push.autoSetupRemote`, `rerere.enabled` and aliases are all unset. You could add them later. They are left out here on purpose.
+7. **delta renders in 256 colours, not 24-bit.** Windows Terminal supports 24-bit colour but does not export `COLORTERM`, so delta's auto-detection stays off (`delta --show-config` reads `true-color = false`). `true-color = always` under `[delta]`, or `COLORTERM=truecolor` in the profiles, would switch *Visual Studio Dark+* to its real colours. Not applied, to keep the copy exact; apply it on both machines or neither.
+8. **`less` exists only through Git's launcher.** No `less` is on the PowerShell `PATH`. Every Git command still pages correctly because `git.exe` prepends Git's `usr\bin` for its children (*How delta pages*, step 3). Keep it that way: adding another `less` to `PATH` changes nothing for Git, and setting a `*PAGER` variable to one does.
 
 ::: footer
-Inventory method: `git config --list --show-scope --show-origin`; raw `~/.gitconfig` and `C:\Program Files\Git\etc\gitconfig`; `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1`; `C:\Program Files\Git\etc\install-options.txt`; `winget list`; persisted User/Machine environment; PowerShell profile. Secrets were masked during collection, and none are recorded here.
+Inventory method: `git config --list --show-scope --show-origin`; raw `~/.gitconfig` and `C:\Program Files\Git\etc\gitconfig`; `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1`; `C:\Program Files\Git\etc\install-options.txt`; `winget list`; persisted User/Machine environment; PowerShell profile; `delta --show-config`; `git -c alias.probe='!command -v less' probe` from PowerShell; `git-config(1)` *core.pager*; the delta manual (*Environment variables*, *--color-moved support*, *Using Delta on Windows*, *24 bit color*). Secrets were masked during collection, and none are recorded here.
 :::
