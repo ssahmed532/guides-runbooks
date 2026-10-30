@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WSL2 Developer Runbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F6F6F3; --surface:#FFFFFF; --surface-2:#EEEFEA; --line:#D8DAD3; --line-strong:#B9BCB3;
+  --ink:#1B1F24; --ink-2:#4A5058; --muted:#6F767F;
+  --accent:#0B6E69; --accent-ink:#0B6E69; --accent-soft:#DCEFEC;
+  --warn:#9A5B00; --warn-soft:#F7ECD6; --bad:#A33A2C; --bad-soft:#F6E1DD; --good:#2E6B3A; --good-soft:#DFEEDF;
+  --code-bg:#1E2329; --code-ink:#E6E8E3; --code-cmt:#8A939C; --code-str:#9ED3C6;
+  --shadow:0 1px 2px rgba(20,24,28,.06), 0 8px 24px -16px rgba(20,24,28,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171B; --surface:#1B1F24; --surface-2:#222730; --line:#2E343C; --line-strong:#434B55;
+    --ink:#E8EAE6; --ink-2:#B8BDC4; --muted:#8A9199;
+    --accent:#4FB8AF; --accent-ink:#7CD0C8; --accent-soft:#183531;
+    --warn:#E0A64A; --warn-soft:#3A2D14; --bad:#E07B6C; --bad-soft:#3E1F1A; --good:#7CC48A; --good-soft:#1B3322;
+    --code-bg:#0F1216; --code-ink:#DDE1DC; --code-cmt:#7F8891; --code-str:#9ED3C6;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171B; --surface:#1B1F24; --surface-2:#222730; --line:#2E343C; --line-strong:#434B55;
+  --ink:#E8EAE6; --ink-2:#B8BDC4; --muted:#8A9199;
+  --accent:#4FB8AF; --accent-ink:#7CD0C8; --accent-soft:#183531;
+  --warn:#E0A64A; --warn-soft:#3A2D14; --bad:#E07B6C; --bad-soft:#3E1F1A; --good:#7CC48A; --good-soft:#1B3322;
+  --code-bg:#0F1216; --code-ink:#DDE1DC; --code-cmt:#7F8891; --code-str:#9ED3C6;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,Segoe UI,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink)}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 24px 64px}
+.page{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;align-items:start}
+@media (max-width:860px){.page{grid-template-columns:1fr}.toc{position:static}}
+@media (max-width:520px){.wrap{padding:28px 16px 48px}}
+h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:2.5rem;font-weight:600;letter-spacing:-.01em}
+h2{font-size:1.5rem;font-weight:600;margin-top:56px;padding-top:20px;border-top:1px solid var(--line)}
+h3{font-size:1.1rem;font-weight:600;margin-top:28px}
+p{margin:12px 0;max-width:68ch}
+ul,ol{max-width:70ch;padding-left:22px}
+li{margin:6px 0}
+.eyebrow{font-family:"IBM Plex Mono",Consolas,monospace;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin:14px 0 0;font-size:.85rem;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:500}
+.lede{font-size:1.1rem;color:var(--ink-2);max-width:62ch;margin-top:18px}
+.toc{position:sticky;top:24px;font-size:.9rem}
+.toc ol{list-style:none;padding:0;margin:8px 0 0;border-left:2px solid var(--line)}
+.toc li{margin:0}
+.toc a{display:block;padding:5px 12px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent;margin-left:-2px}
+.toc a:hover,.toc a:focus-visible{color:var(--accent-ink);border-left-color:var(--accent)}
+.toc .sub{font-size:.8rem;color:var(--muted);padding-left:12px;margin-top:14px}
+.codeblock{position:relative;max-width:100%}
+pre{margin:14px 0;background:var(--code-bg);color:var(--code-ink);border-radius:6px;padding:14px 16px;overflow-x:auto;font:.86rem/1.55 "IBM Plex Mono",Consolas,monospace}
+pre .c{color:var(--code-cmt)}
+pre .s{color:var(--code-str)}
+code{font-family:"IBM Plex Mono",Consolas,monospace;font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+pre code{background:none;padding:0;font-size:inherit}
+.copy{position:absolute;top:8px;right:8px;font:.68rem/1 "IBM Plex Mono",monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--code-cmt);background:transparent;border:1px solid #3A424C;border-radius:4px;padding:5px 8px;cursor:pointer;opacity:.75}
+.copy:hover,.copy:focus-visible{opacity:1;color:var(--code-ink)}
+.shell{display:inline-block;font:.7rem/1 "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:14px}
+.shell + .codeblock pre{margin-top:6px}
+.state{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:28px}
+@media (max-width:700px){.state{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 20px}
+.panel h3{margin-top:0;font-size:1rem}
+.panel ul{padding-left:18px;margin:10px 0 0;font-size:.93rem}
+.panel.now{border-top:3px solid var(--bad)}
+.panel.target{border-top:3px solid var(--accent)}
+.callout{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 6px 6px 0;margin:18px 0;max-width:72ch}
+.callout.info{border-left-color:var(--accent);background:var(--accent-soft)}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-soft)}
+.callout p{margin:6px 0}
+.phase{margin-top:44px;padding-top:24px;border-top:1px solid var(--line)}
+.phase-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.phase-num{font-family:"IBM Plex Mono",monospace;font-size:.8rem;color:var(--accent-ink);letter-spacing:.06em;min-width:3ch}
+.phase h2{border:0;margin:0;padding:0}
+.why{color:var(--ink-2);font-size:.95rem}
+.verify{margin-top:16px;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:12px 16px;max-width:72ch}
+.verify .eyebrow{color:var(--good)}
+.verify p{margin:6px 0;font-size:.93rem}
+table{border-collapse:collapse;width:100%;font-size:.9rem;margin:14px 0}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--ink-2);font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+.pill{display:inline-block;font:.72rem/1 "IBM Plex Mono",monospace;padding:4px 8px;border-radius:999px;letter-spacing:.03em}
+.pill.tool{background:var(--accent-soft);color:var(--accent-ink)}
+.pill.proj{background:var(--good-soft);color:var(--good)}
+.pill.dev{background:var(--warn-soft);color:var(--warn)}
+.pill.skip{background:var(--surface-2);color:var(--muted)}
+.check{list-style:none;padding:0;max-width:72ch}
+.check li{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.check li::before{content:"";width:16px;height:16px;border:1.5px solid var(--line-strong);border-radius:3px;margin-top:5px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.8rem;color:var(--muted);margin:10px 0 0}
+.seq{counter-reset:s -1;list-style:none;padding:0;max-width:72ch}
+.seq li{counter-increment:s;display:grid;grid-template-columns:3ch 1fr auto;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line);align-items:baseline}
+.seq li::before{content:counter(s,decimal-leading-zero);font:.8rem "IBM Plex Mono",monospace;color:var(--accent-ink)}
+.seq .where{font:.7rem/1 "IBM Plex Mono",monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+@media (max-width:520px){.seq li{grid-template-columns:3ch 1fr}.seq .where{grid-column:2}}
+footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted);max-width:none}
+footer p{max-width:none}
+kbd{font-family:"IBM Plex Mono",monospace;font-size:.85em;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Runbook · Windows 11 · WSL2 · Ubuntu 26.04 LTS · Claude Code</div>
+  <h1 style="margin-top:10px">WSL2 Developer Runbook</h1>
+  <p class="lede">A fresh Ubuntu 26.04 LTS instance on WSL2, set up for development with Claude Code running inside Linux: back up and remove any old instance, bring WSL itself up to date, then build the new one. Every developer tool (Git, SSH, Node.js, Python, Claude Code, containers, cloud CLIs) is installed and runs inside Linux; Windows only supplies WSL, a terminal, and a browser for one-time sign-ins. Every step keeps Microsoft's defaults unless a measurement or an official recommendation says otherwise, and each change has an undo.</p>
+  <div class="meta">
+    <span>Version <b>1.2</b></span>
+    <span>Last updated <b>2026-10-30</b></span>
+    <span>Status <b>sources verified; not yet run end to end on a fresh install</b></span>
+    <span>Owner <b>Salman Ahmed</b></span>
+    <span>Scope <b>one Windows 11 developer laptop, per-user install</b></span>
+  </div>
+</header>
+
+<div class="page" style="margin-top:36px">
+
+<nav class="toc" aria-label="Contents">
+  <div class="eyebrow">Contents</div>
+  <ol>
+    <li><a href="#sequence">Sequence at a glance</a></li>
+    <li><a href="#evidence">Why these steps</a></li>
+    <li><a href="#host">What Windows must provide</a></li>
+    <li><a href="#p0">00 Remove an old instance</a></li>
+    <li><a href="#p1">01 Update the WSL platform</a></li>
+    <li><a href="#p2">02 Global .wslconfig</a></li>
+    <li><a href="#p3">03 Install Ubuntu 26.04</a></li>
+    <li><a href="#p4">04 First boot</a></li>
+    <li><a href="#p5">05 Trim boot services</a></li>
+    <li><a href="#p6">06 Cap the journal</a></li>
+    <li><a href="#p7">07 Base packages</a></li>
+    <li><a href="#p8">08 SSH, Git and signing</a></li>
+    <li><a href="#p9">09 Where code lives</a></li>
+    <li><a href="#p10">10 Node.js</a></li>
+    <li><a href="#p11">11 Python</a></li>
+    <li><a href="#p12">12 Claude Code</a></li>
+    <li><a href="#p13">13 GitHub and Azure CLIs</a></li>
+    <li><a href="#p14">14 Optional: VS Code</a></li>
+    <li><a href="#p15">15 Containers</a></li>
+    <li><a href="#p16">16 Windows PATH</a></li>
+  </ol>
+  <div class="sub">After setup</div>
+  <ol>
+    <li><a href="#done">Definition of done</a></li>
+    <li><a href="#maintain">Maintenance cadence</a></li>
+    <li><a href="#rollback">Undo any step</a></li>
+    <li><a href="#gotchas">Gotchas</a></li>
+    <li><a href="#refs">References</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h2 id="sequence" style="margin-top:0;border-top:0;padding-top:0">Sequence at a glance</h2>
+<p>Order matters in three places. The old instance is backed up <em>before</em> it is removed, because removal deletes its disk. WSL is brought up to date <em>before</em> the new distro is created, and <code>.wslconfig</code> is written before that too, so the new disk is created sparse. The service trim runs <em>before</em> the toolchains, so the boot-time baseline is clean when you measure it.</p>
+<ol class="seq">
+  <li><span>Optional: back up and remove an existing instance</span><span class="where">Ubuntu + PowerShell</span></li>
+  <li><span>Bring Windows and the WSL platform up to date</span><span class="where">PowerShell</span></li>
+  <li><span>Write the global <code>.wslconfig</code></span><span class="where">PowerShell</span></li>
+  <li><span>Install Ubuntu 26.04 LTS, create the Linux user</span><span class="where">PowerShell</span></li>
+  <li><span>Update packages, confirm systemd</span><span class="where">Ubuntu</span></li>
+  <li><span>Disable boot services a dev box does not use</span><span class="where">Ubuntu</span></li>
+  <li><span>Cap the system journal</span><span class="where">Ubuntu</span></li>
+  <li><span>Install base packages</span><span class="where">Ubuntu</span></li>
+  <li><span>Create SSH keys; configure Git and commit signing</span><span class="where">Ubuntu</span></li>
+  <li><span>Create the project folder on the Linux disk</span><span class="where">Ubuntu</span></li>
+  <li><span>Install Node.js with nvm</span><span class="where">Ubuntu</span></li>
+  <li><span>Install uv and a uv-managed Python</span><span class="where">Ubuntu</span></li>
+  <li><span>Install, sign in to, and sandbox Claude Code</span><span class="where">Ubuntu</span></li>
+  <li><span>Install the GitHub and Azure CLIs</span><span class="where">Ubuntu</span></li>
+  <li><span>Optional: connect VS Code</span><span class="where">Windows + Ubuntu</span></li>
+  <li><span>Install Docker Engine inside Ubuntu</span><span class="where">Ubuntu</span></li>
+  <li><span>Stop importing the Windows PATH</span><span class="where">Ubuntu</span></li>
+</ol>
+<div class="legend">
+  <span><span class="pill tool">Microsoft</span> <span class="pill tool">Claude docs</span> <span class="pill tool">GitHub docs</span> <span class="pill tool">Docker docs</span> <span class="pill tool">Astral docs</span> from the vendor's official docs</span>
+  <span><span class="pill proj">measured</span> measured on this laptop 2026-10-30</span>
+  <span><span class="pill dev">optional</span> depends on how you work</span>
+</div>
+
+<h2 id="evidence">Why these steps</h2>
+<p>Measured on this laptop (Intel Core Ultra 7 155H, 32 GB RAM, NVMe, corporate endpoint protection) on 2026-10-30, against the existing Ubuntu 24.04 instance before and after the same changes this runbook makes.</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>Test</th><th>Linux disk (ext4)</th><th>Windows drive from WSL (<code>/mnt/e</code>)</th><th>Native Windows (<code>E:</code>)</th></tr></thead>
+  <tbody>
+    <tr><td>Create 2,000 small files</td><td>0.06 s</td><td>19.6 s</td><td>4.2 s</td></tr>
+    <tr><td>List the same files with details</td><td>0.01 s</td><td>8.5 s</td><td>0.11 s</td></tr>
+    <tr><td>Write 256 MB, flushed</td><td>0.27 s</td><td>3.0 s</td><td>not measured</td></tr>
+  </tbody>
+</table></div>
+<div class="tablewrap" style="margin-top:12px"><table>
+  <thead><tr><th>Measure</th><th>Before</th><th>After</th><th>Changed by</th></tr></thead>
+  <tbody>
+    <tr><td>WSL start from fully stopped</td><td>6.5 s</td><td>4.9 s</td><td><a href="#p5">05</a></td></tr>
+    <tr><td>systemd userspace startup</td><td>2.0 s</td><td>0.74 s</td><td><a href="#p5">05</a></td></tr>
+    <tr><td>System journal on disk</td><td>654 MB</td><td>107 MB</td><td><a href="#p6">06</a></td></tr>
+    <tr><td><code>PATH</code> entries (Windows)</td><td>47 (35)</td><td>13 (1)</td><td><a href="#p16">16</a></td></tr>
+    <tr><td>Lookup of a command that does not exist</td><td>0.26 s</td><td>under 0.01 s</td><td><a href="#p16">16</a></td></tr>
+  </tbody>
+</table></div>
+<p class="why">The first table is the single biggest factor: Linux tools working on files under <code>/mnt/</code> are 100 to 300 times slower than on the Linux disk. Microsoft's guidance is the same: store files on the file system of the tools that use them (<a href="#refs">References</a>).</p>
+
+<h2 id="host">What Windows must provide</h2>
+<p>The setup is Linux-native: every tool below is a Linux binary installed with Linux package managers, configured under <code>/home</code>, and authenticated from the Linux shell. The Windows side shrinks to this:</p>
+<div class="state">
+  <div class="panel target">
+    <h3>Required on Windows</h3>
+    <ul>
+      <li>Windows 11 (22H2 or later) with Windows Update current</li>
+      <li>WSL from the Microsoft Store (phase 01)</li>
+      <li>A terminal. Microsoft recommends Windows Terminal.</li>
+      <li>A web browser, on this or any other device, for one-time sign-ins. Each sign-in prints a URL or code; nothing connects the Linux tools to a Windows browser.</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <h3>Not needed on Windows</h3>
+    <ul>
+      <li>Git for Windows and Git Credential Manager: Git and SSH run in Linux (phase 08)</li>
+      <li>Node.js, Python, uv: installed in Linux (phases 10–11)</li>
+      <li>Claude Code for Windows: the Linux build runs in WSL (phase 12)</li>
+      <li>GitHub CLI and Azure CLI for Windows (phase 13)</li>
+      <li>Docker Desktop: Docker Engine runs in Ubuntu (phase 15)</li>
+      <li>VS Code: optional (phase 14)</li>
+    </ul>
+  </div>
+</div>
+<p class="why">Windows copies of these tools can stay installed for Windows work. Phase 16 stops WSL from seeing them, so nothing in Linux runs a Windows copy by accident.</p>
+
+<!-- 00 -->
+<section class="phase" id="p0">
+  <div class="phase-head"><span class="phase-num">00</span><h2>Back up and remove an existing instance</h2><span class="pill dev">optional</span><span class="pill tool">Microsoft</span></div>
+  <p class="why">Skip this phase on a machine with no distro to replace. <code>wsl --unregister</code> deletes the distro's disk with all its files, settings and software, and cannot be undone. The export in step 2 is your only way back.</p>
+  <div class="callout bad"><p>Unregister only the distro you are replacing. <code>wsl -l -v</code> may also list <code>docker-desktop</code>: that one belongs to Docker Desktop, so leave it alone.</p></div>
+
+  <h3>1. Find work that exists only in this distro</h3>
+  <p>Inside the <b>old</b> distro, list repositories with uncommitted changes or commits that were never pushed. Push or copy anything you need.</p>
+  <span class="shell">Old distro · bash</span>
+  <div class="codeblock"><pre><code>for d in $(find ~ -maxdepth 4 -name .git -type d -prune 2&gt;/dev/null); do
+  r=${d%/.git}; echo "== $r"
+  git -C "$r" status --short --branch | head -5            <span class="c"># uncommitted changes</span>
+  git -C "$r" log --branches --not --remotes --oneline | head -5   <span class="c"># commits on no remote</span>
+done</code></pre></div>
+  <p>Also note the files you will want in the new instance: <code>~/.ssh/</code>, <code>~/.gitconfig</code>, <code>~/.claude/</code> and <code>~/.claude.json</code> (Claude Code settings, MCP servers, session history), your shell config files, and <code>/etc/wsl.conf</code>.</p>
+
+  <h3>2. Export a full backup</h3>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code>$env:WSL_UTF8 = 1                   <span class="c"># readable wsl.exe output</span>
+wsl -l -v                           <span class="c"># confirm the exact name of the distro to replace</span>
+$old = 'Ubuntu-24.04'               <span class="c"># &lt;- the distro you are replacing</span>
+$bak = 'D:\WSL-backup'              <span class="c"># &lt;- a drive with room for the distro's used space</span>
+New-Item -ItemType Directory -Force $bak | Out-Null
+
+wsl --shutdown
+wsl --export $old "$bak\$old-$(Get-Date -Format yyyy-MM-dd).tar"
+Get-ChildItem $bak                  <span class="c"># the .tar is roughly the size of the distro's used space</span></code></pre></div>
+  <p><code>--format tar.gz</code> produces a smaller file at the cost of a slower export.</p>
+  <div class="callout"><p>The archive contains everything in the distro, including private SSH keys and Claude Code and Git tokens. Keep it on an encrypted drive, and delete it once the new instance passes the <a href="#done">Definition of done</a>.</p></div>
+
+  <h3>3. Remove the distro</h3>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code><span class="c"># record where its disk lives, to check for leftovers afterwards</span>
+$base = (Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss |
+  Where-Object { $_.GetValue("DistributionName") -eq $old }).GetValue("BasePath") -replace '^\\\\\?\\',''
+$base
+
+wsl --unregister $old               <span class="c"># permanent: deletes the distro's disk</span>
+wsl -l -v                           <span class="c"># the distro is no longer listed</span>
+Test-Path $base                     <span class="c"># if the folder remains, check it is empty before deleting it</span>
+
+<span class="c"># older Store-app installs also leave an app behind; list any:</span>
+Get-AppxPackage | Where-Object { $_.Name -match 'Canonical|Ubuntu' } | Select-Object Name, Version</code></pre></div>
+  <p>If <code>Get-AppxPackage</code> lists an Ubuntu app, uninstall it in <b>Settings → Apps → Installed apps</b>, as Microsoft describes. Newer installs, including this laptop's Ubuntu 24.04, are not Store apps, so nothing is listed. If Windows Terminal still shows a profile for the old distro, delete it in Terminal Settings.</p>
+
+  <h3>4. Bring selected files across later</h3>
+  <p>After phase 12, copy back only what you need from the archive. Look inside it first, because entry paths start with the old user's home folder:</p>
+  <span class="shell">New distro · bash</span>
+  <div class="codeblock"><pre><code>tar -tf /mnt/d/WSL-backup/&lt;file&gt;.tar | grep -E '/\.ssh/|/\.claude' | head -20
+mkdir -p /tmp/restore
+tar -xf /mnt/d/WSL-backup/&lt;file&gt;.tar -C /tmp/restore &lt;paths from the listing&gt;
+<span class="c"># copy what you need into ~, then for SSH keys:</span>
+chmod 700 ~/.ssh &amp;&amp; chmod 600 ~/.ssh/id_*</code></pre></div>
+  <p>Or, to browse the old system as a whole, import the archive as a temporary distro, copy what you need, then remove it: <code>wsl --import Old-Ubuntu C:\WSL\old-ubuntu &lt;file&gt;.tar</code>, then <code>wsl --unregister Old-Ubuntu</code>.</p>
+
+  <h3>Full platform reset (only if WSL itself is broken)</h3>
+  <p>Removing the WSL package is a separate step from removing a distro, and is not needed for a normal fresh start. Quit Docker Desktop first, because it runs on WSL. Then run <code>wsl --uninstall</code>, followed by phase 01, which reinstalls WSL.</p>
+  <div class="verify"><div class="eyebrow">Verify</div><p>The <code>.tar</code> backup exists with a plausible size, <code>wsl -l -v</code> no longer lists the old distro, and nothing outside it (such as <code>docker-desktop</code>) changed.</p></div>
+</section>
+
+<!-- 01 -->
+<section class="phase" id="p1">
+  <div class="phase-head"><span class="phase-num">01</span><h2>Bring Windows and the WSL platform up to date</h2><span class="pill tool">Microsoft</span></div>
+  <p class="why">The new distro runs on whatever WSL version and kernel are installed when it is created. Recent features in this runbook have minimum versions: <code>wsl --manage</code> needs WSL 2.5, built-in containers need 2.9.3, and mirrored networking and DNS tunneling need Windows 11 22H2.</p>
+
+  <h3>1. Windows itself</h3>
+  <p>Install pending updates in <b>Settings → Windows Update</b> and restart if asked. Then confirm the build:</p>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code>systeminfo | Select-String "^OS Name","^OS Version"
+<span class="c"># Windows 11 22H2 is build 22621; this laptop showed Windows 11 Pro, build 26200</span></code></pre></div>
+
+  <h3>2. Windows components and the hypervisor</h3>
+  <span class="shell">PowerShell (administrator)</span>
+  <div class="codeblock"><pre><code><span class="c"># InstallState 1 = enabled. VirtualMachinePlatform is required for WSL 2;
+# Microsoft-Windows-Subsystem-Linux is only needed for WSL 1.</span>
+Get-CimInstance Win32_OptionalFeature |
+  Where-Object Name -in 'VirtualMachinePlatform','Microsoft-Windows-Subsystem-Linux' |
+  Select-Object Name, InstallState
+
+bcdedit /enum | findstr -i hypervisorlaunchtype   <span class="c"># expect: Auto</span></code></pre></div>
+  <ul>
+    <li><b>WSL or Virtual Machine Platform missing:</b> run <code>wsl --install --no-distribution</code> in an administrator PowerShell. It turns on the required components without installing a distro. Restart Windows afterwards.</li>
+    <li><b><code>hypervisorlaunchtype</code> is <code>Off</code>:</b> run <code>bcdedit /set hypervisorlaunchtype Auto</code> (administrator) and restart.</li>
+    <li><b>Error <code>0x80370102</code> later on:</b> turn on CPU virtualization in the firmware (BIOS/UEFI) settings, following the PC maker's instructions.</li>
+  </ul>
+
+  <h3>3. Store-delivered WSL, updated to the latest release</h3>
+  <p>Microsoft recommends the Microsoft Store version of WSL, which receives updates as soon as they ship. If <code>wsl --version</code> is not recognized, the machine has the old built-in version; <code>wsl --update</code> moves it to the Store version.</p>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code><span class="c"># close every WSL window and quit Docker Desktop first</span>
+wsl --shutdown
+wsl --update
+wsl --version          <span class="c"># WSL version, kernel version, WSLg</span>
+wsl --status           <span class="c"># default distro and default version (expect 2)</span>
+
+<span class="c"># the Store package, if you want to see it directly</span>
+Get-AppxPackage MicrosoftCorporationII.WindowsSubsystemForLinux | Select-Object Name, Version</code></pre></div>
+  <p>Compare the WSL version with the release marked <b>Latest</b> on <a href="https://github.com/microsoft/WSL/releases/latest">github.com/microsoft/WSL/releases</a>. On 2026-10-30 that was 3.0.3, the same version installed on this laptop, with kernel 6.18.54.1.</p>
+  <ul>
+    <li><b>Store blocked by policy:</b> Microsoft's command reference lists <code>wsl --update --web-download</code>, which downloads from GitHub instead of the Store. WSL 3.0.3's own <code>wsl --help</code> does not list that option, so check <code>wsl --help</code> on your version. The other route is the installer files attached to the GitHub release.</li>
+    <li><b>Pre-release builds:</b> <code>wsl --update --pre-release</code> installs a preview version if one exists. Use it only to test a specific fix; a daily-driver laptop should stay on the release marked Latest.</li>
+  </ul>
+  <div class="verify"><div class="eyebrow">Verify</div><p>Windows 11 build 22621 or later; <code>VirtualMachinePlatform</code> is 1; <code>wsl --version</code> matches the latest GitHub release and is at least 2.9.3; <code>wsl --status</code> reports default version 2.</p></div>
+</section>
+
+<!-- 02 -->
+<section class="phase" id="p2">
+  <div class="phase-head"><span class="phase-num">02</span><h2>Write the global <code>.wslconfig</code></h2><span class="pill tool">Microsoft</span></div>
+  <p class="why">Do this before installing the distro. <code>sparseVhd</code> only applies to disks created after it is set; with it on, space freed inside Linux goes back to Windows.</p>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code><span class="c"># look first: edit the existing file instead if one is there</span>
+Get-Content "$env:USERPROFILE\.wslconfig" -ErrorAction SilentlyContinue
+
+@'
+[experimental]
+# new distro disks are created sparse, so freed space returns to Windows
+sparseVhd=true
+'@ | Set-Content -Path "$env:USERPROFILE\.wslconfig"</code></pre></div>
+  <p>Microsoft also recommends the <b>WSL Settings</b> app (Start menu) for these settings instead of editing the file by hand. Both write the same file.</p>
+  <h3>Defaults this runbook keeps, and when to change them</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Setting</th><th>Default</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td><code>[wsl2] memory</code></td><td>50% of Windows RAM</td><td>Keep. Set a cap only if Windows runs short while heavy containers run.</td></tr>
+      <tr><td><code>[wsl2] processors</code></td><td>All logical processors</td><td>Keep.</td></tr>
+      <tr><td><code>[wsl2] swap</code></td><td>25% of RAM, rounded up to whole GB</td><td>Keep.</td></tr>
+      <tr><td><code>[experimental] autoMemoryReclaim</code></td><td><code>dropCache</code></td><td>Keep. Cached memory is already returned to Windows. Docker's docs suggest turning it on; it is already on.</td></tr>
+      <tr><td><code>[wsl2] networkingMode</code></td><td><code>NAT</code></td><td><span class="pill dev">optional</span> Set <code>mirrored</code> if you need VPN compatibility, IPv6, LAN access to WSL, or <code>127.0.0.1</code> from Linux to Windows services. Needs Windows 11 22H2+.</td></tr>
+      <tr><td><code>[wsl2] dnsTunneling</code></td><td><code>true</code></td><td>Keep. Aimed at VPN compatibility.</td></tr>
+      <tr><td><code>[wsl2] vmIdleTimeout</code></td><td><code>60000</code> ms</td><td><span class="pill dev">optional</span> Raise it to avoid the cold start after a minute idle. The VM keeps its RAM longer.</td></tr>
+      <tr><td><code>[general] instanceIdleTimeout</code></td><td><code>15000</code> ms</td><td>Keep. <code>-1</code> disables distro auto-shutdown.</td></tr>
+    </tbody>
+  </table></div>
+  <p>If you switch to <code>mirrored</code> networking and need inbound connections, Microsoft documents this Hyper-V firewall command (administrator PowerShell):</p>
+  <span class="shell">PowerShell (administrator)</span>
+  <div class="codeblock"><pre><code>Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow</code></pre></div>
+  <div class="callout info"><p>Changes to <code>.wslconfig</code> or <code>/etc/wsl.conf</code> apply only after the WSL VM fully stops. Run <code>wsl --shutdown</code>, or wait about 8 seconds after closing every WSL window and confirm with <code>wsl --list --running</code>.</p></div>
+</section>
+
+<!-- 03 -->
+<section class="phase" id="p3">
+  <div class="phase-head"><span class="phase-num">03</span><h2>Install Ubuntu 26.04 LTS</h2><span class="pill tool">Microsoft</span></div>
+  <p class="why"><code>wsl --install</code> downloads from the Microsoft Store by default; <code>--web-download</code> is the documented way to bypass the Store. Naming the version keeps the result predictable. Distros are per-user installs, so a normal PowerShell is enough.</p>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code><span class="c"># confirm the exact name: on 2026-10-30 the list showed Ubuntu-26.04 "Ubuntu 26.04 LTS"</span>
+wsl --list --online
+
+wsl --install -d Ubuntu-26.04
+
+<span class="c"># only if the download hangs at 0.0%</span>
+wsl --install --web-download -d Ubuntu-26.04</code></pre></div>
+  <p>The first launch asks for a Linux user name and password. They are separate from your Windows account; the user becomes the distro's default user with <code>sudo</code> rights. Nothing shows on screen while you type the password.</p>
+  <p><span class="pill dev">optional</span> <code>--location &lt;folder&gt;</code> places the disk on another drive, for example when <code>C:</code> is short of space. On this laptop the drive made no measurable speed difference.</p>
+  <p><span class="pill dev">optional</span> If you prefer the Microsoft Store app: search for Ubuntu and select <b>Get</b> on the listing named just <b>Ubuntu</b> (Store ID <code>9PDXGNCFSCZV</code>). The Store has no separate listing per version; on 2026-10-30 this listing's description said it provides the 26.04.1 LTS release. The distro may then register under a different name (check with <code>wsl -l -v</code>); use that name in place of <code>Ubuntu-26.04</code> in the commands below.</p>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code><span class="c"># make it the default if other distros exist</span>
+wsl --set-default Ubuntu-26.04
+
+<span class="c"># confirm WSL 2 and a sparse disk</span>
+wsl -l -v
+$vhd = ((Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss |
+  Where-Object { $_.GetValue("DistributionName") -eq 'Ubuntu-26.04' }).GetValue("BasePath") -replace '^\\\\\?\\','') + "\ext4.vhdx"
+fsutil sparse queryflag $vhd
+
+<span class="c"># if it reports NOT sparse (for example, .wslconfig was written late):</span>
+wsl --shutdown
+wsl --manage Ubuntu-26.04 --set-sparse true</code></pre></div>
+  <div class="callout"><p>WSL prints a notice that sparse disks are still experimental. If you see disk problems, turn it off with <code>wsl --manage Ubuntu-26.04 --set-sparse false</code>. Microsoft also warns: never open, move, or edit the files under <code>AppData</code> that hold the distro with Windows tools. Use <code>\\wsl$\Ubuntu-26.04\</code> to reach Linux files from Windows.</p></div>
+  <div class="verify"><div class="eyebrow">Verify</div><p><code>wsl -l -v</code> lists <code>Ubuntu-26.04</code> with VERSION <code>2</code>, and <code>fsutil</code> prints <i>This file is set as sparse</i>.</p></div>
+</section>
+
+<!-- 04 -->
+<section class="phase" id="p4">
+  <div class="phase-head"><span class="phase-num">04</span><h2>First boot: update and confirm systemd</h2><span class="pill tool">Microsoft</span></div>
+  <p class="why">Windows does not update Linux packages; you do. systemd must be the init process for the service steps that follow.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo apt update &amp;&amp; sudo apt upgrade
+
+cat /etc/wsl.conf          <span class="c"># expect [boot] systemd=true</span>
+ps -p 1 -o comm=           <span class="c"># expect: systemd</span>
+
+<span class="c"># baseline before trimming, for comparison in phase 05</span>
+systemd-analyze
+systemd-analyze blame | head -10</code></pre></div>
+  <p>If <code>/etc/wsl.conf</code> lacks the <code>[boot]</code> section, add it with <code>sudo nano /etc/wsl.conf</code>, then run <code>wsl --shutdown</code> from PowerShell and reopen Ubuntu:</p>
+  <div class="codeblock"><pre><code>[boot]
+systemd=true</code></pre></div>
+</section>
+
+<!-- 05 -->
+<section class="phase" id="p5">
+  <div class="phase-head"><span class="phase-num">05</span><h2>Disable boot services a dev box does not use</h2><span class="pill proj">measured</span></div>
+  <p class="why">The Ubuntu image ships services meant for cloud servers and managed fleets. On this laptop they were the slowest units at boot, with <code>landscape-client</code> alone at 800 ms. The loop disables only units that exist, so it is safe if 26.04 ships a different set. <code>disable</code> is reversible; nothing is uninstalled.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Group</th><th>What it does</th><th>Keep it if</th></tr></thead>
+    <tbody>
+      <tr><td><code>landscape-client</code>, <code>wsl-pro</code></td><td>Canonical Landscape and Ubuntu Pro for WSL agents</td><td>Your org manages WSL through Landscape or Ubuntu Pro</td></tr>
+      <tr><td><code>snapd*</code></td><td>Snap package daemon (socket, timers, helpers)</td><td><code>snap list</code> shows snaps you use</td></tr>
+      <tr><td><code>cloud-init*</code></td><td>First-boot provisioning for cloud images</td><td>You provision WSL with cloud-init user data</td></tr>
+      <tr><td><code>apport*</code></td><td>Crash report collection</td><td>You send crash reports to Canonical</td></tr>
+      <tr><td><code>rsyslog</code></td><td>Second system logger; journald already logs</td><td>A tool needs <code>/var/log/syslog</code></td></tr>
+    </tbody>
+  </table></div>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>snap list 2&gt;/dev/null     <span class="c"># expect: no snaps installed</span>
+
+for u in landscape-client.service wsl-pro.service \
+  snapd.service snapd.socket snapd.seeded.service snapd.apparmor.service snapd.autoimport.service \
+  snapd.core-fixup.service snapd.recovery-chooser-trigger.service snapd.system-shutdown.service snapd.snap-repair.timer \
+  cloud-init-local.service cloud-init.service cloud-config.service cloud-final.service cloud-init-hotplugd.socket \
+  apport.service apport-autoreport.path apport-autoreport.timer apport-forward.socket \
+  rsyslog.service; do
+  if systemctl list-unit-files --no-legend "$u" | grep -q .; then sudo systemctl disable --now "$u"; fi
+done</code></pre></div>
+  <p>Leave <code>unattended-upgrades</code> enabled: it applies security updates.</p>
+  <div class="verify"><div class="eyebrow">Verify</div><p>After <code>wsl --shutdown</code> and reopening Ubuntu: <code>systemctl --failed</code> lists nothing, and <code>systemd-analyze</code> reports a lower userspace time than the phase 04 baseline (here 2.0 s → 0.74 s).</p></div>
+</section>
+
+<!-- 06 -->
+<section class="phase" id="p6">
+  <div class="phase-head"><span class="phase-num">06</span><h2>Cap the system journal</h2><span class="pill proj">measured</span></div>
+  <p class="why">Without a cap, the journal grew to 654 MB here, 16% of the distro. A drop-in file keeps the package-owned <code>journald.conf</code> untouched, so upgrades do not prompt about it.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=100M\n' | sudo tee /etc/systemd/journald.conf.d/size.conf
+sudo systemctl restart systemd-journald
+journalctl --disk-usage</code></pre></div>
+  <div class="verify"><div class="eyebrow">Verify</div><p><code>journalctl --disk-usage</code> stays near or below 100 MB.</p></div>
+</section>
+
+<!-- 07 -->
+<section class="phase" id="p7">
+  <div class="phase-head"><span class="phase-num">07</span><h2>Install base packages</h2><span class="pill tool">Microsoft</span><span class="pill tool">Claude docs</span></div>
+  <p class="why"><code>git</code> and <code>curl</code> are needed by the next phases. <code>bubblewrap</code> and <code>socat</code> are what Claude Code's sandbox uses on Linux and WSL2. <code>keychain</code> keeps one SSH agent running for all terminals (phase 08).</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo apt install git curl bubblewrap socat keychain</code></pre></div>
+</section>
+
+<!-- 08 -->
+<section class="phase" id="p8">
+  <div class="phase-head"><span class="phase-num">08</span><h2>Create SSH keys; configure Git and commit signing</h2><span class="pill tool">GitHub docs</span><span class="pill tool">Microsoft</span></div>
+  <p class="why">SSH keys created inside Linux replace Git Credential Manager from Git for Windows: no Windows program sits in the Git path. GitHub takes an Ed25519 key. Azure DevOps accepts <b>RSA keys only</b> (Microsoft recommends 3072 bits), so it gets a second key. Protect both with a passphrase; <code>keychain</code> asks for it once per WSL boot, not on every push.</p>
+
+  <h3>1. Identity and keys</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+
+ssh-keygen -t ed25519 -C "you@example.com"     <span class="c"># GitHub: ~/.ssh/id_ed25519</span>
+ssh-keygen -t rsa -b 3072                      <span class="c"># Azure DevOps: ~/.ssh/id_rsa</span></code></pre></div>
+
+  <h3>2. Tell SSH which key Azure DevOps gets</h3>
+  <p class="why">Azure DevOps accepts only the first key a client offers, and fails without trying others. Pin the RSA key for its host:</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>cat &gt;&gt; ~/.ssh/config &lt;&lt;'EOF'
+Host ssh.dev.azure.com
+  IdentityFile ~/.ssh/id_rsa
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config</code></pre></div>
+
+  <h3>3. One SSH agent for all terminals</h3>
+  <p class="why">Ubuntu's own <code>ssh-agent</code> user service only starts in a graphical desktop session, so it does not run in WSL. <code>keychain</code> starts one agent and every new terminal reconnects to it. Ubuntu's <code>~/.bashrc</code> already exits early for non-interactive shells, so this line never prompts inside scripts.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>echo 'eval "$(keychain --eval --quiet id_ed25519 id_rsa)"' &gt;&gt; ~/.bashrc
+<span class="c"># open a new terminal: it asks for each key's passphrase once, then
+# every other terminal reuses the agent until WSL shuts down</span>
+ssh-add -l          <span class="c"># lists both keys</span></code></pre></div>
+
+  <h3>4. Register the public keys</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>cat ~/.ssh/id_ed25519.pub   <span class="c"># GitHub → Settings → SSH and GPG keys → New SSH key (Authentication key)</span>
+cat ~/.ssh/id_rsa.pub       <span class="c"># Azure DevOps → User settings → SSH public keys → + New Key</span>
+
+ssh -T git@github.com       <span class="c"># expect: Hi &lt;user&gt;! You've successfully authenticated ...</span>
+ssh -T git@ssh.dev.azure.com
+<span class="c"># first connection: compare the fingerprint with the one on the Azure DevOps
+# SSH public keys page before typing yes. Success prints "Shell access is not supported."</span></code></pre></div>
+  <p>Select the key text and copy it with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> in Windows Terminal. Azure DevOps SSH keys stop working if you go too long without signing in to Azure DevOps on the web (about 30 days, depending on Entra policy), and organization policy can make keys expire.</p>
+
+  <h3>5. Sign commits with the same Ed25519 key</h3>
+  <p class="why">These are the Linux lines from <a href="sign-your-commits.md">Sign Your Commits</a>, which explains each step. Its fifth line points Git at Git for Windows' <code>ssh-keygen.exe</code>; leave it out here, because Ubuntu has a single OpenSSH.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>git config --global gpg.format ssh
+git config --global user.signingkey ~/.ssh/id_ed25519.pub
+git config --global commit.gpgsign true
+git config --global tag.gpgSign true
+
+printf '%s %s\n' "you@example.com" "$(cat ~/.ssh/id_ed25519.pub)" &gt; ~/.ssh/allowed_signers
+git config --global gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers</code></pre></div>
+  <p>On GitHub, upload the same public key a second time with key type <b>Signing key</b>; GitHub keeps authentication and signing keys separate.</p>
+  <ul>
+    <li>Clone with SSH URLs: <code>git@github.com:&lt;org&gt;/&lt;repo&gt;.git</code> and <code>git@ssh.dev.azure.com:v3/&lt;org&gt;/&lt;project&gt;/&lt;repo&gt;</code>. To move an existing clone from HTTPS, run <code>git remote set-url origin &lt;SSH URL&gt;</code>.</li>
+    <li>Azure DevOps does not serve Git LFS over SSH; repositories that use LFS there need an HTTPS remote.</li>
+    <li>For repositories that are also checked out on Windows, set line endings in a <code>.gitattributes</code> file in the repo rather than per machine.</li>
+  </ul>
+  <div class="verify"><div class="eyebrow">Verify</div><p>Both <code>ssh -T</code> tests succeed; <code>ssh-add -l</code> lists two keys; for a test commit, <code>git log --show-signature -1</code> prints a line starting with <i>Good</i>.</p></div>
+</section>
+
+<!-- 09 -->
+<section class="phase" id="p9">
+  <div class="phase-head"><span class="phase-num">09</span><h2>Keep code on the Linux disk</h2><span class="pill tool">Microsoft</span><span class="pill proj">measured</span></div>
+  <p class="why">This is the largest performance decision in the runbook (see <a href="#evidence">Why these steps</a>). Claude Code's docs add that search on <code>/mnt/c</code> can return fewer results than expected while <code>claude doctor</code> still reports search as OK.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>mkdir -p ~/src &amp;&amp; cd ~/src
+git clone git@github.com:&lt;org&gt;/&lt;repo&gt;.git</code></pre></div>
+  <p>Rule: projects edited with Linux tools live under <code>/home/&lt;you&gt;</code>; projects edited with Windows tools stay on a Windows drive. Avoid sharing one working copy between both. To look at Linux files from Windows, type <code>\\wsl$\Ubuntu-26.04\home\&lt;you&gt;\src</code> into the File Explorer address bar.</p>
+</section>
+
+<!-- 10 -->
+<section class="phase" id="p10">
+  <div class="phase-head"><span class="phase-num">10</span><h2>Install Node.js with nvm</h2><span class="pill tool">Microsoft</span></div>
+  <p class="why">A Linux Node.js prevents WSL from picking up the Windows <code>node</code> and <code>npm</code> through the imported PATH, which runs Windows binaries against Linux files and can build native modules for the wrong OS. Microsoft recommends a version manager; Ubuntu's <code>apt</code> Node.js is outdated.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code><span class="c"># the command as published by Microsoft; the nvm README also publishes a version-pinned URL</span>
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+
+<span class="c"># open a new terminal, then:</span>
+command -v nvm      <span class="c"># expect: nvm</span>
+nvm install --lts
+node --version
+which node npm      <span class="c"># both must be under ~/.nvm, never /mnt/c</span></code></pre></div>
+  <p>With nvm, global npm packages install without <code>sudo</code>. Never use <code>sudo npm install -g</code>. Claude Code itself does not need Node.js (phase 12 installs a native binary); Node.js here is for your projects.</p>
+</section>
+
+<!-- 11 -->
+<section class="phase" id="p11">
+  <div class="phase-head"><span class="phase-num">11</span><h2>Install uv and a uv-managed Python</h2><span class="pill tool">Astral docs</span></div>
+  <p class="why">Ubuntu's system Python belongs to the OS: leave it alone and never <code>pip install</code> into it. Projects, scripts and CLI tools go through uv with a Python that uv downloads and manages in your home folder. The working rules match the Windows side (see <a href="uv-only-python-playbook.md">uv-Only Python Playbook</a>).</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>curl -LsSf https://astral.sh/uv/install.sh | sh
+echo 'eval "$(uv generate-shell-completion bash)"' &gt;&gt; ~/.bashrc
+<span class="c"># open a new terminal, then:</span>
+uv --version
+uv python install          <span class="c"># latest CPython, managed by uv</span>
+uv python list             <span class="c"># shows the managed interpreter next to Ubuntu's /usr/bin/python3</span></code></pre></div>
+  <p>uv installs a versioned executable only, so <code>python3</code> on <code>PATH</code> still means Ubuntu's copy. Run Python through <code>uv run</code>, <code>uv tool</code> and project environments.</p>
+</section>
+
+<!-- 12 -->
+<section class="phase" id="p12">
+  <div class="phase-head"><span class="phase-num">12</span><h2>Install, sign in to, and sandbox Claude Code</h2><span class="pill tool">Claude docs</span></div>
+  <p class="why">Install Claude Code inside WSL with the native Linux installer and launch it from the WSL terminal, not from PowerShell. The native install updates itself in the background. WSL 2 is the only Windows option where Claude Code's sandbox works.</p>
+  <h3>Install and check</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>curl -fsSL https://claude.ai/install.sh | bash
+
+<span class="c"># open a new terminal so ~/.local/bin is on PATH, then:</span>
+which claude        <span class="c"># expect: /home/&lt;you&gt;/.local/bin/claude</span>
+claude --version
+claude doctor       <span class="c"># install health, settings validation, auto-update status</span></code></pre></div>
+  <p>To follow the slower, more stable release channel instead, install with <code>bash -s stable</code> or set <code>"autoUpdatesChannel": "stable"</code> in <code>~/.claude/settings.json</code>. Don't install with <code>npm</code> or the Windows <code>npm</code>.</p>
+
+  <h3>Sign in</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>cd ~/src/&lt;repo&gt;
+claude              <span class="c"># follow the browser prompts</span></code></pre></div>
+  <p>If no browser opens, or the browser ends on a <code>localhost</code> connection error: at the prompt press <kbd>c</kbd> to copy the login URL, open it in a Windows browser, sign in, and paste the code it shows at <i>Paste code here</i>. If pasting does nothing, use <kbd>Shift</kbd>+<kbd>Insert</kbd> or right-click in Windows Terminal, or run <code>claude auth login</code>. This copy-URL flow works with any browser on any device, so there is nothing to connect between Linux and a Windows browser.</p>
+
+  <h3>Turn on the sandbox</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code><span class="c"># Ubuntu 24.04+ AppArmor check for bubblewrap. 0 or "No such file or directory": nothing to do.
+# (On this laptop's WSL kernel 6.18 the key does not exist.)</span>
+sysctl kernel.apparmor_restrict_unprivileged_userns
+
+<span class="c"># only if it printed 1:</span>
+sudo tee /etc/apparmor.d/bwrap &gt; /dev/null &lt;&lt;'EOF'
+abi &lt;abi/4.0&gt;,
+include &lt;tunables/global&gt;
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists &lt;local/bwrap&gt;
+}
+EOF
+sudo systemctl reload apparmor</code></pre></div>
+  <p>Then, inside a Claude Code session, run <code>/sandbox</code>. Or turn it on for every session in <code>~/.claude/settings.json</code>:</p>
+  <div class="codeblock"><pre><code>{
+  "sandbox": {
+    "enabled": true
+  }
+}</code></pre></div>
+  <div class="callout"><p>If a sandbox dependency is missing, Claude Code runs commands <b>unsandboxed</b> by default. Set <code>"failIfUnavailable": true</code> inside the <code>sandbox</code> block to make it refuse to start instead.</p></div>
+  <div class="verify"><div class="eyebrow">Verify</div><p><code>claude doctor</code> shows no warnings; <code>/sandbox</code> shows no Dependencies tab; <code>/status</code> shows the account you expect.</p></div>
+</section>
+
+<!-- 13 -->
+<section class="phase" id="p13">
+  <div class="phase-head"><span class="phase-num">13</span><h2>Install the GitHub and Azure CLIs</h2><span class="pill tool">GitHub docs</span><span class="pill tool">Microsoft</span><span class="pill dev">optional</span></div>
+  <p class="why">Claude Code calls <code>gh</code> for pull requests and issues, and <code>az</code> for Azure work. Installed from their vendors' signed apt repositories, both update with <code>sudo apt upgrade</code>, and neither depends on its Windows copy. Install only the ones you use.</p>
+
+  <h3>GitHub CLI</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>(type -p wget &gt;/dev/null || (sudo apt update &amp;&amp; sudo apt install wget -y)) \
+	&amp;&amp; sudo mkdir -p -m 755 /etc/apt/keyrings \
+	&amp;&amp; out=$(mktemp) &amp;&amp; wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+	&amp;&amp; cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg &gt; /dev/null \
+	&amp;&amp; sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&amp;&amp; sudo mkdir -p -m 755 /etc/apt/sources.list.d \
+	&amp;&amp; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list &gt; /dev/null \
+	&amp;&amp; sudo apt update \
+	&amp;&amp; sudo apt install gh -y
+
+gh auth login       <span class="c"># GitHub.com → SSH → pick ~/.ssh/id_ed25519.pub → sign in with the one-time code</span>
+gh auth status      <span class="c"># shows the account and where the token is stored</span></code></pre></div>
+
+  <h3>Azure CLI</h3>
+  <p class="why">Microsoft's step-by-step method, which adds the signed repository explicitly. Microsoft lists Ubuntu 26.04 as tested.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo apt-get update
+sudo apt-get install apt-transport-https ca-certificates curl gnupg lsb-release
+
+sudo mkdir -p /etc/apt/keyrings
+curl -sLS https://packages.microsoft.com/keys/microsoft.asc |
+  gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg &gt; /dev/null
+sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
+
+AZ_DIST=$(lsb_release -cs)
+echo "Types: deb
+URIs: https://packages.microsoft.com/repos/azure-cli/
+Suites: ${AZ_DIST}
+Components: main
+Architectures: $(dpkg --print-architecture)
+Signed-by: /etc/apt/keyrings/microsoft.gpg" | sudo tee /etc/apt/sources.list.d/azure-cli.sources
+
+sudo apt-get update
+sudo apt-get install azure-cli
+
+az login --use-device-code    <span class="c"># prints a URL and code; sign in from any browser</span></code></pre></div>
+  <div class="verify"><div class="eyebrow">Verify</div><p><code>which gh az</code> prints <code>/usr/bin/gh</code> and <code>/usr/bin/az</code>; <code>gh auth status</code> and <code>az account show</code> show the expected accounts.</p></div>
+</section>
+
+<!-- 14 -->
+<section class="phase" id="p14">
+  <div class="phase-head"><span class="phase-num">14</span><h2>Optional: connect VS Code</h2><span class="pill tool">Microsoft</span><span class="pill dev">optional</span></div>
+  <p class="why">Nothing else in this runbook needs VS Code: Claude Code, the toolchains and Git all run in the terminal. If you use VS Code, it runs its UI on Windows and its server, extensions and terminal inside WSL, so editing and linting work on Linux files at Linux speed.</p>
+  <ol>
+    <li>Install VS Code on Windows, then the <b>WSL</b> extension (<code>ms-vscode-remote.remote-wsl</code>).</li>
+    <li>From a project folder in Ubuntu, run <code>code .</code>. The remote indicator in the bottom-left corner shows the WSL connection.</li>
+    <li>Extensions install separately for the WSL side. Install the ones you use, including Claude Code, under <b>WSL: Ubuntu-26.04</b> in the Extensions view.</li>
+    <li>Claude Code started in VS Code's integrated terminal connects to the editor on its own. From an external terminal, run <code>/ide</code> inside Claude Code.</li>
+  </ol>
+</section>
+
+<!-- 15 -->
+<section class="phase" id="p15">
+  <div class="phase-head"><span class="phase-num">15</span><h2>Install Docker Engine inside Ubuntu</h2><span class="pill tool">Docker docs</span><span class="pill dev">optional</span></div>
+  <p class="why">Docker's own Linux engine, from Docker's apt repository, running under systemd in the distro: no Windows application involved. Docker lists Ubuntu 26.04 (Resolute) as supported. A fresh distro has none of the conflicting packages; on an older one, follow the "Uninstall old versions" step on Docker's page first.</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo tee /etc/apt/sources.list.d/docker.sources &lt;&lt;EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release &amp;&amp; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+sudo apt update
+
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo docker run hello-world</code></pre></div>
+  <h3>Run docker without sudo</h3>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo groupadd docker            <span class="c"># may report that the group already exists</span>
+sudo usermod -aG docker $USER
+newgrp docker
+docker run hello-world</code></pre></div>
+  <div class="callout bad"><p>Docker states that the <code>docker</code> group grants root-level privileges. Docker also documents a rootless mode that avoids this. Docker also warns that published container ports bypass firewall rules.</p></div>
+  <p>The engine starts with the distro. If it slows WSL start-up noticeably, compare <code>systemd-analyze blame</code> before and after installing it.</p>
+  <h3>Alternatives that depend on Windows</h3>
+  <ul>
+    <li><b>Docker Desktop</b> (Windows app): Settings → Resources → <b>WSL Integration</b> → turn on <code>Ubuntu-26.04</code>. Docker requires removing any engine installed inside the distro first, so choose one or the other.</li>
+    <li><b><code>wslc</code></b> (ships with WSL 2.9.3+): Microsoft's tutorial runs it from PowerShell, for example <code>wslc run --rm hello-world</code>. <code>.wslconfig</code> does not configure it.</li>
+  </ul>
+  <p class="why">Keep project files on the Linux disk with every option. Microsoft's container tutorial states that files on the Windows drive "significantly slow things down".</p>
+  <div class="verify"><div class="eyebrow">Verify</div><p><code>which docker</code> prints <code>/usr/bin/docker</code>; <code>docker run hello-world</code> works without <code>sudo</code>.</p></div>
+</section>
+
+<!-- 16 -->
+<section class="phase" id="p16">
+  <div class="phase-head"><span class="phase-num">16</span><h2>Stop importing the Windows PATH</h2><span class="pill proj">measured</span></div>
+  <p class="why">By default WSL appends every Windows <code>PATH</code> folder to Linux, so a missing Linux tool silently falls through to its Windows copy. With every tool now installed in Linux, nothing here needs that. Turning it off removed 34 Windows entries on this laptop and cut the lookup of a missing command from 0.26 s to under 0.01 s.</p>
+  <div class="decision state">
+    <div class="panel target">
+      <h3>Turn it off (recommended for this setup)</h3>
+      <ul>
+        <li>Only Linux binaries run by name, so a missing tool fails loudly instead of running its Windows copy.</li>
+        <li>Shorter <code>PATH</code>; typos, tab completion and <code>command -v</code> checks no longer scan dozens of Windows folders.</li>
+        <li>Windows programs still run by full path, for example <code>/mnt/c/Windows/explorer.exe .</code></li>
+      </ul>
+    </div>
+    <div class="panel now">
+      <h3>Keep the default</h3>
+      <ul>
+        <li>Choose this if you call Windows programs by name from Linux, such as <code>explorer.exe</code>, <code>clip.exe</code> or <code>code</code>.</li>
+        <li>Claude Code's install troubleshooting page advises against turning the import off, because Windows programs then no longer run by name. In this setup Claude Code runs no Windows programs, and its sign-in uses the copy-URL flow (phase 12).</li>
+      </ul>
+    </div>
+  </div>
+  <p>Edit both files inside Ubuntu with <code>nano</code>. Do not pipe text into them from PowerShell; see <a href="#gotchas">Gotchas</a>. The <code>~/.profile</code> part is only needed if you use VS Code (phase 14).</p>
+  <span class="shell">Ubuntu · bash</span>
+  <div class="codeblock"><pre><code>sudo nano /etc/wsl.conf
+<span class="c"># add:</span>
+[interop]
+appendWindowsPath=false
+
+nano ~/.profile
+<span class="c"># add at the end, to keep the VS Code launcher:</span>
+if [ -d "/mnt/c/Program Files/Microsoft VS Code/bin" ] ; then
+    PATH="$PATH:/mnt/c/Program Files/Microsoft VS Code/bin"
+fi</code></pre></div>
+  <span class="shell">PowerShell</span>
+  <div class="codeblock"><pre><code>wsl --shutdown</code></pre></div>
+  <div class="verify"><div class="eyebrow">Verify</div><p>In a new Ubuntu terminal: <code>echo "$PATH" | tr ':' '\n' | grep -c '^/mnt/'</code> prints <code>1</code>, and <code>command -v code</code> still resolves.</p></div>
+</section>
+
+<h2 id="done">Definition of done</h2>
+<p>Run both blocks. Every line should match the expected result.</p>
+<span class="shell">PowerShell</span>
+<div class="codeblock"><pre><code>wsl --version                  <span class="c"># matches the latest GitHub release; 2.9.3 or later</span>
+wsl -l -v                      <span class="c"># Ubuntu-26.04, VERSION 2, marked * if it should be the default</span>
+Get-Content "$env:USERPROFILE\.wslconfig"   <span class="c"># sparseVhd=true</span></code></pre></div>
+<span class="shell">Ubuntu · bash</span>
+<div class="codeblock"><pre><code>ps -p 1 -o comm=                         <span class="c"># systemd</span>
+systemctl --failed --no-legend           <span class="c"># (nothing)</span>
+systemd-analyze | head -1                <span class="c"># lower than the phase 04 baseline</span>
+journalctl --disk-usage                  <span class="c"># about 100M or less</span>
+ssh-add -l                               <span class="c"># two keys loaded</span>
+ssh -T git@github.com                    <span class="c"># Hi &lt;user&gt;! ...</span>
+git log --show-signature -1              <span class="c"># Good ... (inside any repo with a new commit)</span>
+which -a git ssh node npm uv claude gh az docker   <span class="c"># every path is Linux; none under /mnt/</span>
+echo "$PATH" | tr ':' '\n' | grep -c '^/mnt/'      <span class="c"># 0, or 1 with the VS Code launcher</span>
+claude doctor                            <span class="c"># no warnings</span>
+docker run --rm hello-world              <span class="c"># if phase 15 was done</span>
+pwd                                      <span class="c"># projects under /home/&lt;you&gt;, not /mnt/</span></code></pre></div>
+<ul class="check">
+  <li>Old instance exported and unregistered (if there was one); backup kept on an encrypted drive until this list is complete</li>
+  <li>Windows up to date; WSL at the latest release; Ubuntu 26.04 LTS installed on WSL 2 with a sparse disk</li>
+  <li>systemd running; unused boot services disabled; no failed units</li>
+  <li>Journal capped at 100 MB</li>
+  <li>SSH keys in Linux reach GitHub and Azure DevOps; commits are signed</li>
+  <li>Node.js (nvm), uv with a managed Python, Claude Code, <code>gh</code>, <code>az</code> and Docker all resolve to Linux paths</li>
+  <li>Claude Code signed in, <code>claude doctor</code> clean, sandbox on</li>
+  <li>Windows <code>PATH</code> no longer imported; no Windows developer tool is needed for any of the above</li>
+  <li>Projects live under <code>~/src</code></li>
+</ul>
+
+<h2 id="maintain">Maintenance cadence</h2>
+<div class="tablewrap"><table>
+  <thead><tr><th>When</th><th>Where</th><th>Command</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Weekly</td><td>Ubuntu</td><td><code>sudo apt update &amp;&amp; sudo apt upgrade</code></td><td>Windows never updates Linux packages. Also updates <code>gh</code>, <code>az</code> and Docker, which come from apt repositories.</td></tr>
+    <tr><td>Monthly</td><td>PowerShell</td><td><code>wsl --update</code></td><td>WSL, kernel and <code>wslc</code></td></tr>
+    <tr><td>Monthly</td><td>Ubuntu</td><td><code>claude doctor</code></td><td>Confirms the last background update succeeded</td></tr>
+    <tr><td>Monthly</td><td>Ubuntu</td><td><code>uv self update</code></td><td>Keeps uv current</td></tr>
+    <tr><td>New Node LTS</td><td>Ubuntu</td><td><code>nvm install --lts</code></td><td>Installs the newest LTS. To upgrade nvm itself, re-run its install script; installed Node versions are kept.</td></tr>
+    <tr><td>Disk near full</td><td>PowerShell</td><td><code>wsl --shutdown</code>, then <code>wsl --manage Ubuntu-26.04 --resize &lt;size&gt;</code></td><td>The disk's default maximum is 1 TB. It does not occupy that space on Windows.</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="rollback">Undo any step</h2>
+<div class="tablewrap"><table>
+  <thead><tr><th>Phase</th><th>Undo</th></tr></thead>
+  <tbody>
+    <tr><td>00 removed distro</td><td>Re-create it from the backup: <code>wsl --import &lt;Name&gt; &lt;InstallLocation&gt; &lt;file&gt;.tar</code>. Imported distros have no launcher app, so set the default user in <code>/etc/wsl.conf</code> under <code>[user]</code>.</td></tr>
+    <tr><td>02 sparse default</td><td>Delete the <code>sparseVhd=true</code> line from <code>%UserProfile%\.wslconfig</code></td></tr>
+    <tr><td>03 sparse disk</td><td><code>wsl --shutdown</code>, then <code>wsl --manage Ubuntu-26.04 --set-sparse false</code></td></tr>
+    <tr><td>03 the whole distro</td><td><code>wsl --unregister Ubuntu-26.04</code>. <b>Deletes all files in the distro permanently.</b> Export first with <code>wsl --export Ubuntu-26.04 &lt;file&gt;.tar</code>.</td></tr>
+    <tr><td>05 services</td><td><code>sudo systemctl enable --now &lt;unit&gt;</code> for each unit you want back</td></tr>
+    <tr><td>06 journal cap</td><td><code>sudo rm /etc/systemd/journald.conf.d/size.conf &amp;&amp; sudo systemctl restart systemd-journald</code></td></tr>
+    <tr><td>08 SSH keys and signing</td><td>Delete the keys from your GitHub and Azure DevOps profiles first, then from <code>~/.ssh</code>. Remove the <code>keychain</code> line from <code>~/.bashrc</code>. To stop signing: <code>git config --global commit.gpgsign false</code>.</td></tr>
+    <tr><td>12 Claude Code</td><td><code>rm -f ~/.local/bin/claude &amp;&amp; rm -rf ~/.local/share/claude</code> (settings stay in <code>~/.claude</code>)</td></tr>
+    <tr><td>13 GitHub CLI</td><td><code>sudo apt remove gh &amp;&amp; sudo rm /etc/apt/sources.list.d/github-cli.list</code></td></tr>
+    <tr><td>13 Azure CLI</td><td><code>sudo apt-get remove -y azure-cli &amp;&amp; sudo rm /etc/apt/sources.list.d/azure-cli.sources</code>, then <code>rm -rf ~/.azure</code></td></tr>
+    <tr><td>15 Docker Engine</td><td><code>sudo apt remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin</code>, then <code>sudo rm /etc/apt/sources.list.d/docker.sources</code></td></tr>
+    <tr><td>16 Windows PATH</td><td>Remove the <code>[interop]</code> lines from <code>/etc/wsl.conf</code> and the VS Code block from <code>~/.profile</code>, then <code>wsl --shutdown</code></td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="gotchas">Gotchas</h2>
+<p>Most of these came up during the 2026-10-30 session that this runbook is based on.</p>
+<ul>
+  <li><b>Piping a script into WSL from PowerShell can stop it partway, with no error.</b> With <code>… | wsl bash -s</code>, any Windows program the script calls (such as <code>npm</code> or <code>az</code> through the imported PATH) reads the rest of the script from stdin, so the remaining commands never run. Copy the script into the distro and run it with stdin from <code>/dev/null</code>.</li>
+  <li><b>Text piped from PowerShell into a Linux file gains Windows line endings.</b> The symptom is <code>$'\r': command not found</code> on every login. Edit Linux files with <code>nano</code> inside Ubuntu, or remove the carriage returns with <code>sed -i 's/\r$//' &lt;file&gt;</code>.</li>
+  <li><b><code>wsl.exe</code> output looks spaced out or garbled in PowerShell.</b> It writes UTF-16 by default. Set <code>$env:WSL_UTF8=1</code> before running it in scripts.</li>
+  <li><b>Configuration changes seem to have no effect.</b> The VM was still running. Run <code>wsl --shutdown</code>, or confirm with <code>wsl --list --running</code>.</li>
+  <li><b>Endpoint protection slows file work on the Windows side, not inside the Linux disk.</b> Here, native Windows file creation on <code>E:</code> was 70 times slower than on the Linux disk, while the Linux disk wrote at about 950 MB/s. Scan exclusions are a security decision for InfoSec, not part of this runbook.</li>
+  <li><b>Ubuntu's built-in <code>ssh-agent</code> service never starts in WSL.</b> Its user unit has <code>ConditionPathExists=/etc/X11/Xsession.options</code>, so it waits for a graphical desktop session that WSL does not start. That is why phase 08 uses <code>keychain</code>.</li>
+  <li><b>Slow DNS may not be a WSL problem.</b> Lookups taking 1–2 s here were equally slow on Windows. Test from both sides before changing <code>dnsTunneling</code> or <code>networkingMode</code>.</li>
+</ul>
+
+<h2 id="refs">References</h2>
+<p>Every command above comes from one of these sources (checked 2026-10-30) or was measured on this laptop.</p>
+<ul>
+  <li>Microsoft: <a href="https://learn.microsoft.com/en-us/windows/wsl/install">Install WSL</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/basic-commands">Basic commands (update, export, import, unregister)</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/troubleshooting">Troubleshooting (components, virtualization, hypervisor)</a> · <a href="https://github.com/microsoft/WSL/releases">WSL releases on GitHub</a> ·<a href="https://learn.microsoft.com/en-us/windows/wsl/setup/environment">Set up a WSL development environment</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/wsl-config">Advanced settings configuration (wsl.conf, .wslconfig)</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/filesystems">Working across file systems</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/disk-space">Manage WSL disk space</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/networking">Networking</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-git">Git on WSL</a> · <a href="https://learn.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-wsl">Node.js on WSL 2</a> · <a href="https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers">Containers on WSL (wslc)</a></li>
+  <li>Claude Code: <a href="https://code.claude.com/docs/en/setup">Advanced setup</a> · <a href="https://code.claude.com/docs/en/troubleshoot-install">Troubleshoot installation and login</a> · <a href="https://code.claude.com/docs/en/troubleshooting">Troubleshooting</a> · <a href="https://code.claude.com/docs/en/sandboxing">Sandboxing</a></li>
+  <li>Git and SSH: <a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux">GitHub: generate an SSH key</a> · <a href="https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection">GitHub: test the SSH connection</a> · <a href="https://learn.microsoft.com/en-us/azure/devops/repos/git/use-ssh-keys-to-authenticate">Azure DevOps: SSH key authentication</a> · <a href="https://github.com/danielrobbins/keychain">keychain</a> · <a href="sign-your-commits.md">Sign Your Commits</a></li>
+  <li>CLIs and runtimes: <a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">GitHub CLI on Linux</a> · <a href="https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt">Azure CLI on Linux (apt)</a> · <a href="https://docs.astral.sh/uv/getting-started/installation/">uv installation</a> · <a href="https://docs.astral.sh/uv/guides/install-python/">uv: install Python</a> · <a href="https://github.com/nvm-sh/nvm#installing-and-updating">nvm install and update</a></li>
+  <li>Containers: <a href="https://docs.docker.com/engine/install/ubuntu/">Docker Engine on Ubuntu</a> · <a href="https://docs.docker.com/engine/install/linux-postinstall/">Docker post-install steps</a> · <a href="https://docs.docker.com/desktop/features/wsl/">Docker Desktop WSL 2 backend</a></li>
+  <li>Local: <code>wsl --help</code> and <code>wsl --list --online</code> on WSL 3.0.3.0 for the <code>--install</code>, <code>--manage</code> and distro-name details.</li>
+</ul>
+
+<footer>
+  <p>Produced with Claude Code CLI (Opus 5.5) on Windows 11 · Version 1.2 · Last updated 2026-10-30</p>
+</footer>
+
+</main>
+</div>
+</div>
+
+<script>
+document.querySelectorAll('.codeblock').forEach(function (block) {
+  var pre = block.querySelector('pre');
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'copy';
+  btn.textContent = 'Copy';
+  btn.setAttribute('aria-label', 'Copy code');
+  btn.addEventListener('click', function () {
+    var text = pre.innerText;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text); done(); });
+    } else { fallback(text); done(); }
+  });
+  block.appendChild(btn);
+});
+function fallback(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'absolute'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+</script>
+</body>
+</html>
